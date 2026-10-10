@@ -1,0 +1,70 @@
+name: Publish approved handheld OS packages
+on:
+  schedule:
+    - cron: '17 5 * * *'
+  workflow_dispatch:
+    inputs:
+      verify_write_access:
+        description: Verify publication access with an empty temporary draft
+        type: boolean
+        default: false
+permissions:
+  contents: read
+concurrency:
+  group: approved-handheld-releases
+  cancel-in-progress: false
+jobs:
+  publish:
+    if: github.repository == 'droiddeck/releases' && github.ref == 'refs/heads/main'
+    runs-on: [self-hosted, Linux, X64, droiddeck-publish]
+    timeout-minutes: 120
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          persist-credentials: false
+          clean: true
+      - name: Verify release repository access
+        env:
+          GH_JOB_TOKEN: ${{ github.token }}
+          RUN_ID: ${{ github.run_id }}
+          VERIFY_WRITE: ${{ inputs.verify_write_access }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          import json, os, urllib.request
+          endpoint = 'https://api.github.com/repos/droiddeck/releases/'
+          def api(method, path, body=None):
+              request = urllib.request.Request(endpoint + path, method=method,
+                  data=json.dumps(body).encode() if body is not None else None,
+                  headers={'Authorization': 'Bearer ' + os.environ['GH_JOB_TOKEN'],
+                           'Accept': 'application/vnd.github+json', 'Content-Type': 'application/json'})
+              with urllib.request.urlopen(request, timeout=60) as response:
+                  data = response.read()
+                  return json.loads(data) if data else None
+          api('GET', 'contents/odin2_mini.json?ref=main')
+          if os.environ.get('VERIFY_WRITE') == 'true':
+              draft = api('POST', 'releases', {'tag_name': 'publisher-probe-' + os.environ['RUN_ID'],
+                  'name': 'Temporary publication access check', 'draft': True,
+                  'body': 'No installation package or release asset.'})
+              assert draft['draft'] and not draft['assets']
+              api('DELETE', 'releases/' + str(draft['id']))
+          print('Release repository job access verified')
+          PY
+      - name: Publish the approved inbox
+        env:
+          ODIN2_RELEASE_TOKEN: ${{ github.token }}
+          TMPDIR: ${{ runner.temp }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p "$TMPDIR"
+          python3 tools/lineage-stage-ota.py --ready-root /approved
+      - name: Record publication boundary
+        if: always()
+        shell: bash
+        run: |
+          echo 'Only byte-verified, signed and migration-approved packages can enter the release inbox.' >> "$GITHUB_STEP_SUMMARY"
+          echo 'An empty inbox leaves the public version feed unchanged.' >> "$GITHUB_STEP_SUMMARY"

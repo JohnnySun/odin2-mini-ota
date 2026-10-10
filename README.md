@@ -30,3 +30,15 @@ https://raw.githubusercontent.com/droiddeck/releases/main/odin2_mini.json
 
 The feed is currently an empty array, which means no update is available.
 Additional devices and OS families will receive their own release metadata.
+
+## Publication
+
+The main-only publication workflow checks an approved package inbox daily.
+Its runner is isolated in a container with a read-only inbox: no private source,
+SSH keys, signing keys or Docker control socket are mounted. Fork and pull-request
+events do not run publication jobs. Each job uses this repository's short-lived
+GitHub token; no account-wide publication token is retained.
+
+Packages must pass payload/hash, pinned whole-file signature, redistribution and
+device migration/recovery checks before staging. No approved package is available
+yet, so publication runs currently leave the empty feed unchanged.
