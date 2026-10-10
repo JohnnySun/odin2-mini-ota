@@ -115,10 +115,21 @@ def inspect(package, url):
             # AOSP uses minor version 7 for a partial update even when all
             # selected images are full replacements. No old-image dependency
             # may enter this lane; inspect the actual partition operations too.
-            if (minor[0] if minor else 0, partial[0] if partial else 0) not in ((0, 0), (7, 1)):
-                raise ValueError('unsupported or incremental payload version')
+            if (minor[0] if minor else 0, partial[0] if partial else 0) != (7, 1):
+                raise ValueError('source-only OTA requires full partial-update mode')
             partitions = []
             for number, wire, value in manifest_fields:
+                if number == 15:
+                    if wire != 2:
+                        raise ValueError('invalid dynamic partition metadata')
+                    for n, w, group in fields(value):
+                        if n != 1:
+                            continue
+                        if w != 2:
+                            raise ValueError('invalid dynamic partition group')
+                        for n, w, name in fields(group):
+                            if n == 3 and (w != 2 or name.decode('ascii') not in PUBLIC_PARTITIONS - {'vbmeta_system'}):
+                                raise ValueError('dynamic metadata includes a private partition')
                 if number == 13:
                     if wire != 2:
                         raise ValueError('invalid partition message')
