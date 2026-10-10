@@ -1,17 +1,32 @@
-# Unofficial Odin2 Mini updates
+# Handheld OS Releases
 
-Third-party LineageOS 23.2 / Android 16 distribution for AYN Odin2 Mini.
-This is not an official LineageOS release.
+The public release hub for [droiddeck](https://github.com/droiddeck)'s open-source
+handheld OS distributions. Packages are organized by operating system, target
+device and version, so this repository can serve multiple handhelds and OS families.
 
-Installable packages are published as GitHub Release assets only after package,
-signing, redistribution and device OTA compatibility verification.
+## Downloads
 
-The public Updater v2 feed is:
+Verified installation packages will be listed under
+[Releases](https://github.com/droiddeck/releases/releases), with device-specific
+release notes, checksums and installation guidance.
 
-https://raw.githubusercontent.com/JohnnySun/odin2-mini-ota/main/odin2_mini.json
+**No installable OS package has been published yet.**
 
-The initial feed is an empty array. There is currently no approved OTA release.
-An empty feed means no update is available; it does not require reinstalling.
+## Current development target
 
-This repository does not contain proprietary blobs, raw device dumps, credentials,
-serials, private build manifests or private workbench evidence.
+| System | Device | Availability |
+| --- | --- | --- |
+| LineageOS-based Android 16 / 23.2 | AYN Odin2 Mini | Development; no approved release |
+
+This is a third-party distribution, not an official LineageOS release. An OS
+brand name has not been chosen. Only install a package explicitly marked for
+your device and supported installation path.
+
+## Update metadata
+
+The Odin2 Mini Android client's public v2 update feed is:
+
+https://raw.githubusercontent.com/droiddeck/releases/main/odin2_mini.json
+
+The feed is currently an empty array, which means no update is available.
+Additional devices and OS families will receive their own release metadata.
