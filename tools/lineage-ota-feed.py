@@ -106,14 +106,36 @@ def inspect(package, url):
             signature = stream.read(signature_size)
             if len(manifest) != manifest_size or len(signature) != signature_size:
                 raise ValueError('truncated payload metadata')
+            manifest_fields = list(fields(manifest))
+            minor = [value for number, wire, value in manifest_fields if number == 12 and wire == 0]
+            partial = [value for number, wire, value in manifest_fields if number == 16 and wire == 0]
+            if (len(minor) > 1 or len(partial) > 1 or
+                    any(wire != 0 for number, wire, value in manifest_fields if number in (12, 16))):
+                raise ValueError('invalid payload version or partial-update field')
+            # AOSP uses minor version 7 for a partial update even when all
+            # selected images are full replacements. No old-image dependency
+            # may enter this lane; inspect the actual partition operations too.
+            if (minor[0] if minor else 0, partial[0] if partial else 0) not in ((0, 0), (7, 1)):
+                raise ValueError('unsupported or incremental payload version')
             partitions = []
-            for number, wire, value in fields(manifest):
-                if number == 12 and (wire != 0 or value != 0):
-                    raise ValueError('incremental payload is not allowed in the full OTA lane')
+            for number, wire, value in manifest_fields:
                 if number == 13:
                     if wire != 2:
                         raise ValueError('invalid partition message')
-                    names = [v.decode('ascii') for n, w, v in fields(value) if n == 1 and w == 2]
+                    partition_fields = list(fields(value))
+                    if any(n == 6 for n, w, v in partition_fields):
+                        raise ValueError('payload depends on an old partition image')
+                    for n, w, operation in partition_fields:
+                        if n != 8:
+                            continue
+                        if w != 2:
+                            raise ValueError('invalid install operation')
+                        op_fields = list(fields(operation))
+                        kinds = [v for n, w, v in op_fields if n == 1 and w == 0]
+                        if (len(kinds) != 1 or kinds[0] not in (0, 1, 6, 7, 8) or
+                                any(n in (4, 5, 9) for n, w, v in op_fields)):
+                            raise ValueError('incremental/source-reading install operation')
+                    names = [v.decode('ascii') for n, w, v in partition_fields if n == 1 and w == 2]
                     if len(names) != 1:
                         raise ValueError('invalid partition name')
                     partitions.extend(names)
