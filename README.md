@@ -8,7 +8,7 @@ signing, redistribution and device OTA compatibility verification.
 
 The public Updater v2 feed is:
 
-https://raw.githubusercontent.com/JohnnySun/odin2-mini-ota/main/channels/lineage-23.2/unofficial/odin2_mini.json
+https://raw.githubusercontent.com/JohnnySun/odin2-mini-ota/main/odin2_mini.json
 
 The initial feed is an empty array. There is currently no approved OTA release.
 An empty feed means no update is available; it does not require reinstalling.
