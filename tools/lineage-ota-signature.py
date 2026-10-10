@@ -5,6 +5,7 @@ import os
 import struct
 import subprocess
 import tempfile
+import zipfile
 from pathlib import Path
 
 
@@ -53,3 +54,21 @@ def verify(package, certificate, temp_root=None):
                     '-content', signed, '-noverify', '-nointern', '-certfile', certificate,
                     '-out', os.devnull)
     return hashlib.sha256(certificate_der).hexdigest()
+
+
+def verify_payload(package, certificate, verifier, temp_root=None):
+    verifier = Path(verifier).resolve()
+    if not verifier.is_file() or not os.access(verifier, os.X_OK):
+        raise ValueError('Android native payload signature verifier is missing')
+    with tempfile.TemporaryDirectory(prefix='ota-payload-signature-', dir=temp_root) as directory:
+        root = Path(directory)
+        public_key = root / 'public-key.pem'
+        public_key.write_bytes(openssl('x509', '-in', certificate, '-pubkey', '-noout'))
+        payload = root / 'payload.bin'
+        with zipfile.ZipFile(package) as archive, archive.open('payload.bin') as source, payload.open('wb') as output:
+            for chunk in iter(lambda: source.read(1024 ** 2), b''):
+                output.write(chunk)
+        result = subprocess.run([str(verifier), '--in_file=' + str(payload),
+                                 '--public_key=' + str(public_key)], capture_output=True)
+        if result.returncode:
+            raise ValueError('Android native payload signature verification failed')
