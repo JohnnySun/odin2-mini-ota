@@ -33,7 +33,7 @@ Additional devices and OS families will receive their own release metadata.
 
 ## Publication
 
-The main-only publication workflow checks an approved package inbox daily.
+The main-only publication workflow checks an approved package inbox hourly.
 Its runner is isolated in a container with a read-only inbox: no private source,
 SSH keys, signing keys or Docker control socket are mounted. Fork and pull-request
 events do not run publication jobs. Each job uses this repository's short-lived
