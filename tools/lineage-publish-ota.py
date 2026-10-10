@@ -83,9 +83,11 @@ def main():
         if error.code != 404:
             raise
         release = api('POST', 'releases', {'tag_name': tag, 'name': 'Android / Odin2 Mini / ' + tag,
-            'draft': True, 'prerelease': False,
+            'draft': True, 'prerelease': True,
             'body': 'Third-party LineageOS 23.2 / Android 16 for AYN Odin2 Mini. '
                     'This is not an official LineageOS release.\n\n'
+                    'Development preview for the supported adapted baseline. '
+                    'This release is not a hardened production build.\n\n'
                     'This full source-only OTA updates system, system_ext, product and vbmeta_system. '
                     'It contains no boot/vendor firmware, Google apps or original AYN APKs.\n\n'
                     '**Supported installation:** an already adapted Odin2 Mini baseline with '
