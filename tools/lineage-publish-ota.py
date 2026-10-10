@@ -84,8 +84,20 @@ def main():
             raise
         release = api('POST', 'releases', {'tag_name': tag, 'name': 'Android / Odin2 Mini / ' + tag,
             'draft': True, 'prerelease': False,
-            'body': 'Third-party LineageOS 23.2 / Android 16. This is not an official LineageOS release.\n\n'
-                    'Odin2 Mini only. Package SHA-256: `' + digest + '`.'})
+            'body': 'Third-party LineageOS 23.2 / Android 16 for AYN Odin2 Mini. '
+                    'This is not an official LineageOS release.\n\n'
+                    'This full source-only OTA updates system, system_ext, product and vbmeta_system. '
+                    'It contains no boot/vendor firmware, Google apps or original AYN APKs.\n\n'
+                    '**Supported installation:** an already adapted Odin2 Mini baseline with '
+                    'same-slot vendor, working Virtual A/B and this distribution\'s OTA signing key. '
+                    'Factory Android 13 and earlier cross-slot development layouts are not supported '
+                    'directly by this package. It is not for other Odin models.\n\n'
+                    'Use the built-in Updater to check for the release, download it and start installation. '
+                    'Keep power connected through installation, reboot and snapshot merge. '
+                    'No factory reset is part of the supported update path.\n\n'
+                    'Original AYN touch-mapping software and Google services require separately supplied '
+                    'private components; they are not bundled in this release.\n\n'
+                    'Package SHA-256: `' + digest + '`.'})
     assets = api('GET', f'releases/{release["id"]}/assets')
     matches = [asset for asset in assets if asset['name'] == package.name]
     if matches:
