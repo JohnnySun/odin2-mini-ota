@@ -24,8 +24,10 @@ def blob(n, value):
 
 class PayloadTest(unittest.TestCase):
     def make(self, root, partition='system', corrupt=False, wrong_offset=False, truncated=False,
-             manifest_extra=b'', partition_extra=b''):
+             manifest_extra=None, partition_extra=b''):
         path = Path(root) / 'ota.zip'
+        if manifest_extra is None:
+            manifest_extra = v(12 * 8) + v(7) + v(16 * 8) + v(1)
         manifest = manifest_extra + blob(13, blob(1, partition.encode()) + partition_extra)
         header = b'CrAU' + struct.pack('>QQI', 2, len(manifest), 0)
         meta = header + manifest
@@ -81,12 +83,14 @@ class PayloadTest(unittest.TestCase):
         with tempfile.TemporaryDirectory() as d:
             self.read(self.make(d, manifest_extra=partial, partition_extra=full_operation))
         cases = [
+            {'manifest_extra': b''},
             {'manifest_extra': v(12 * 8) + v(7)},
             {'manifest_extra': v(12 * 8) + v(2)},
             {'manifest_extra': partial + v(12 * 8) + v(7)},
             {'manifest_extra': partial, 'partition_extra': blob(6, b'old hash')},
             {'manifest_extra': partial, 'partition_extra': blob(8, v(1 * 8) + v(4))},
             {'manifest_extra': partial, 'partition_extra': blob(8, v(1 * 8) + v(0) + blob(4, b'old extent'))},
+            {'manifest_extra': partial + blob(15, blob(1, blob(1, b'group') + blob(3, b'vendor')))},
         ]
         for kwargs in cases:
             with self.subTest(kwargs=kwargs), tempfile.TemporaryDirectory() as d:
