@@ -97,10 +97,20 @@ if __name__ == '__main__':
     parser.add_argument('--ready-root', required=True)
     parser.add_argument('--package')
     parser.add_argument('--audit')
+    parser.add_argument('--payload-verifier')
     args = parser.parse_args()
     try:
         if args.package and args.audit:
-            stage(args.package, json.loads(Path(args.audit).read_text()), args.ready_root)
+            if not args.payload_verifier:
+                raise ValueError('A native Android payload verifier is required before staging')
+            module = publisher()
+            audit = json.loads(Path(args.audit).read_text())
+            module.validate_package(Path(args.package), audit, CERTIFICATE)
+            spec = importlib.util.spec_from_file_location('signature', Path(__file__).with_name('lineage-ota-signature.py'))
+            signature = importlib.util.module_from_spec(spec)
+            spec.loader.exec_module(signature)
+            signature.verify_payload(args.package, CERTIFICATE, args.payload_verifier, os.environ.get('TMPDIR'))
+            stage(args.package, audit, args.ready_root)
         elif not args.package and not args.audit:
             publish_ready(args.ready_root)
         else:
