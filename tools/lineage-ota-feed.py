@@ -112,10 +112,11 @@ def inspect(package, url):
             if (len(minor) > 1 or len(partial) > 1 or
                     any(wire != 0 for number, wire, value in manifest_fields if number in (12, 16))):
                 raise ValueError('invalid payload version or partial-update field')
-            # AOSP uses minor version 7 for a partial update even when all
-            # selected images are full replacements. No old-image dependency
-            # may enter this lane; inspect the actual partition operations too.
-            if (minor[0] if minor else 0, partial[0] if partial else 0) != (7, 1):
+            # Partial updates require minor >= 7; Android 16 releasetools
+            # chooses the target engine's supported minor, currently up to 9.
+            # Full replacements must still have no old-image dependencies.
+            if ((minor[0] if minor else 0) not in (7, 8, 9) or
+                    (partial[0] if partial else 0) != 1):
                 raise ValueError('source-only OTA requires full partial-update mode')
             partitions = []
             for number, wire, value in manifest_fields:

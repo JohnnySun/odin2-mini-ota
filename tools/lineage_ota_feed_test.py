@@ -97,6 +97,24 @@ class PayloadTest(unittest.TestCase):
                 with self.assertRaises(ValueError):
                     self.read(self.make(d, **kwargs))
 
+    def test_android16_partial_versions_still_reject_source_dependencies(self):
+        full_operation = blob(8, v(1 * 8) + v(0))
+        for minor in (7, 8, 9):
+            partial = v(12 * 8) + v(minor) + v(16 * 8) + v(1)
+            with self.subTest(minor=minor), tempfile.TemporaryDirectory() as d:
+                self.read(self.make(d, manifest_extra=partial, partition_extra=full_operation))
+            for extra in (blob(6, b'old partition'),
+                          blob(8, v(1 * 8) + v(4)),
+                          blob(8, v(1 * 8) + v(0) + blob(4, b'old extent'))):
+                with self.subTest(minor=minor, extra=extra), tempfile.TemporaryDirectory() as d:
+                    with self.assertRaises(ValueError):
+                        self.read(self.make(d, manifest_extra=partial, partition_extra=extra))
+        for minor, partial in ((6, 1), (10, 1), (9, 0)):
+            manifest = v(12 * 8) + v(minor) + v(16 * 8) + v(partial)
+            with self.subTest(minor=minor, partial=partial), tempfile.TemporaryDirectory() as d:
+                with self.assertRaises(ValueError):
+                    self.read(self.make(d, manifest_extra=manifest, partition_extra=full_operation))
+
     def test_protobuf_truncation_and_unsupported_wire(self):
         for data in (b'\x80', b'\x0a\x05x', b'\x0b', b'\x09x'):
             with self.assertRaises(ValueError):
