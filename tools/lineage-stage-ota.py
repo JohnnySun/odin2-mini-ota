@@ -14,7 +14,8 @@ from pathlib import Path
 
 AUDIT_FIELDS = {'release_tag', 'sha256', 'signing_certificate_sha256',
     'redistribution_verified', 'no_proprietary_payload', 'no_gapps',
-    'signature_verified', 'ota_migration_verified', 'return_to_fastboot_verified'}
+    'signature_verified', 'ota_migration_verified', 'return_to_fastboot_verified',
+    'source_archive', 'source_archive_verified'}
 CERTIFICATE = Path(__file__).resolve().parents[1] / 'config/release-keys/odin2-mini-ota.x509.pem'
 
 
@@ -33,12 +34,17 @@ def digest(path):
     return value.hexdigest()
 
 
-def stage(package, audit, root, certificate=CERTIFICATE):
+def stage(package, audit, root, certificate=CERTIFICATE, source_archive=None):
     package, root = Path(package), Path(root)
     if not re.fullmatch(r'[A-Za-z0-9][A-Za-z0-9._-]*\.zip', package.name):
         raise ValueError('Unsafe OTA asset filename')
     update = publisher().validate_package(package, audit, certificate)
     sha = update['files'][0]['sha256']
+    source_record = audit['source_archive']
+    source_archive = Path(source_archive) if source_archive else package.parent / source_record['filename']
+    publisher().source_module().validate_archive(source_archive, source_record)
+    checksum_bytes = (sha + '  ' + package.name + '\n'
+                      + source_record['sha256'] + '  ' + source_archive.name + '\n').encode()
     public_audit = {key: audit[key] for key in AUDIT_FIELDS}
     root.mkdir(parents=True, exist_ok=True)
     destination = root / sha
@@ -46,6 +52,9 @@ def stage(package, audit, root, certificate=CERTIFICATE):
         if (destination.is_symlink() or digest(destination / package.name) != sha
                 or json.loads((destination / 'audit.json').read_text()) != public_audit):
             raise ValueError('Existing staged bytes or audit differ; refusing replacement')
+        publisher().source_module().validate_archive(destination / source_archive.name, source_record)
+        if (destination / 'SHA256SUMS').read_bytes() != checksum_bytes:
+            raise ValueError('Existing staged checksums differ')
     else:
         with tempfile.TemporaryDirectory(prefix='.stage-', dir=root) as directory:
             temporary = Path(directory)
@@ -53,15 +62,19 @@ def stage(package, audit, root, certificate=CERTIFICATE):
             shutil.copyfile(package, copied)
             if digest(copied) != sha:
                 raise ValueError('Staged OTA bytes differ from the validated package')
+            copied_source = temporary / source_archive.name
+            shutil.copyfile(source_archive, copied_source)
+            publisher().source_module().validate_archive(copied_source, source_record)
+            checksums = temporary / 'SHA256SUMS'
+            checksums.write_bytes(checksum_bytes)
             # The publication container receives only this reduced audit and
             # verified OTA, never private paths, manifests, logs or signing keys.
             metadata = temporary / 'audit.json'
             metadata.write_text(json.dumps(public_audit, indent=2) + '\n')
-            for path in [copied, metadata]:
+            for path in [copied, copied_source, checksums, metadata]:
                 with path.open('rb') as raw:
                     os.fsync(raw.fileno())
-            os.chmod(copied, 0o640)
-            os.chmod(metadata, 0o640)
+                os.chmod(path, 0o640)
             os.chmod(temporary, 0o2750)
             temporary.rename(destination)
     pointer = root / '.latest.json.tmp'
@@ -88,6 +101,14 @@ def publish_ready(root):
         raise ValueError('Approved OTA paths escape the inbox')
     if digest(package) != sha:
         raise ValueError('Approved OTA bytes changed')
+    reviewed = json.loads(audit.read_text())
+    source_record = reviewed['source_archive']
+    publisher().source_module().validate_archive(package.parent / source_record['filename'], source_record)
+    expected_checksums = (sha + '  ' + filename + '\n'
+                          + source_record['sha256'] + '  ' + source_record['filename'] + '\n').encode()
+    checksums = package.parent / 'SHA256SUMS'
+    if checksums.is_symlink() or checksums.read_bytes() != expected_checksums:
+        raise ValueError('Approved release checksums changed')
     subprocess.run([sys.executable, str(Path(__file__).with_name('lineage-publish-ota.py')),
                     str(package), '--audit', str(audit)], check=True)
 
@@ -98,6 +119,7 @@ if __name__ == '__main__':
     parser.add_argument('--package')
     parser.add_argument('--audit')
     parser.add_argument('--payload-verifier')
+    parser.add_argument('--source-archive', help='Reviewed source correspondence archive')
     args = parser.parse_args()
     try:
         if args.package and args.audit:
@@ -110,7 +132,8 @@ if __name__ == '__main__':
             signature = importlib.util.module_from_spec(spec)
             spec.loader.exec_module(signature)
             signature.verify_payload(args.package, CERTIFICATE, args.payload_verifier, os.environ.get('TMPDIR'))
-            stage(args.package, audit, args.ready_root)
+            source_archive = args.source_archive or str(Path(args.audit).parent / audit['source_archive']['filename'])
+            stage(args.package, audit, args.ready_root, source_archive=source_archive)
         elif not args.package and not args.audit:
             publish_ready(args.ready_root)
         else:
