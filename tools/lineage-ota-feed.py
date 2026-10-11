@@ -99,8 +99,9 @@ def inspect(package, url):
             version, manifest_size, signature_size = struct.unpack('>QQI', header[4:])
             if version != 2 or not 0 < manifest_size <= 16 * 1024**2:
                 raise ValueError('unsupported or oversized payload manifest')
-            metadata_size = 24 + manifest_size + signature_size
-            if metadata_size > info.file_size or signature_size > 1024**2:
+            metadata_size = 24 + manifest_size
+            signed_metadata_size = metadata_size + signature_size
+            if signed_metadata_size > info.file_size or signature_size > 1024**2:
                 raise ValueError('payload metadata exceeds payload')
             manifest = stream.read(manifest_size)
             signature = stream.read(signature_size)
@@ -112,10 +113,11 @@ def inspect(package, url):
             if (len(minor) > 1 or len(partial) > 1 or
                     any(wire != 0 for number, wire, value in manifest_fields if number in (12, 16))):
                 raise ValueError('invalid payload version or partial-update field')
-            # AOSP uses minor version 7 for a partial update even when all
-            # selected images are full replacements. No old-image dependency
-            # may enter this lane; inspect the actual partition operations too.
-            if (minor[0] if minor else 0, partial[0] if partial else 0) != (7, 1):
+            # Partial updates require minor >= 7; Android 16 releasetools
+            # chooses the target engine's supported minor, currently up to 9.
+            # Full replacements must still have no old-image dependencies.
+            if ((minor[0] if minor else 0) not in (7, 8, 9) or
+                    (partial[0] if partial else 0) != 1):
                 raise ValueError('source-only OTA requires full partial-update mode')
             partitions = []
             for number, wire, value in manifest_fields:
@@ -152,8 +154,11 @@ def inspect(package, url):
                     partitions.extend(names)
             if not partitions or len(partitions) != len(set(partitions)) or not set(partitions) <= PUBLIC_PARTITIONS:
                 raise ValueError('public OTA contains unapproved or proprietary partitions')
-            digest = hashlib.sha256(header + manifest + signature)
+            # Native METADATA_HASH/SIZE cover the header and manifest only.
+            # FILE_HASH and the streaming metadata prefix include its signature.
+            digest = hashlib.sha256(header + manifest)
             md_hash = base64.b64encode(digest.digest()).decode()
+            digest.update(signature)
             for chunk in iter(lambda: stream.read(1024**2), b''):
                 digest.update(chunk)
             expected = {'FILE_SIZE': str(info.file_size), 'FILE_HASH': base64.b64encode(digest.digest()).decode(),
@@ -179,7 +184,7 @@ def inspect(package, url):
                     raise ValueError('invalid streaming range')
                 seen.add(name)
                 if name == 'payload_metadata.bin':
-                    valid = offset == payload_offset and size == metadata_size
+                    valid = offset == payload_offset and size == signed_metadata_size
                 else:
                     matches = [v for k, v in by_name.items() if k.rsplit('/', 1)[-1] == name]
                     if len(matches) != 1:
