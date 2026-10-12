@@ -1,26 +1,46 @@
 # Handheld OS Releases
 
 The public release hub for [droiddeck](https://github.com/droiddeck)'s open-source
-handheld OS distributions. Packages are organized by operating system, target
-device and version, so this repository can serve multiple handhelds and OS families.
+handheld OS distributions. Each release identifies its OS, device, version and
+supported installation path.
 
 ## Downloads
 
-Verified installation packages will be listed under
-[Releases](https://github.com/droiddeck/releases/releases), with device-specific
-release notes, checksums and installation guidance.
-
-**No installable OS package has been published yet.**
-
-## Current development target
+Download packages, checksums and corresponding source from
+[Releases](https://github.com/droiddeck/releases/releases). The first verified
+[Android 16 preview](https://github.com/droiddeck/releases/releases/tag/23.2-20261011-preview1-756923b14d2e) is available now.
 
 | System | Device | Availability |
 | --- | --- | --- |
-| LineageOS-based Android 16 / 23.2 | AYN Odin2 Mini | Development; no approved release |
+| LineageOS-based Android 16 / 23.2 | AYN Odin2 Mini | Development preview |
 
-This is a third-party distribution, not an official LineageOS release. An OS
-brand name has not been chosen. Only install a package explicitly marked for
-your device and supported installation path.
+This is an unofficial third-party distribution. It is not an official
+LineageOS release or a hardened production build. An OS brand name has not
+been chosen.
+
+## Odin2 Mini installation
+
+The first preview is a full source-only OTA for an **already adapted Odin2
+Mini baseline** with same-slot vendor, working Virtual A/B and this
+distribution's OTA signing certificate. Factory Android 13 and older cross-slot
+development layouts cannot install this package directly. Other Odin models
+are not supported by this package.
+
+The package updates system, system_ext, product and vbmeta_system. It does not
+include boot/vendor firmware, Google apps or original AYN applications. Those
+private components must be obtained separately from an authorized owner.
+
+Use the built-in Updater to check for updates, download and install. Keep power
+connected through installation, reboot and snapshot merge. No factory reset
+is part of the supported update path. Follow the notes for the exact release
+before installing.
+
+## Source
+
+Each release includes a source correspondence archive with the public project
+revisions, adaptation patches and build profile used for its package. Original
+upstream licenses and notices continue to apply. Device-specific private
+inputs and signing keys are not included.
 
 ## Update metadata
 
@@ -28,17 +48,14 @@ The Odin2 Mini Android client's public v2 update feed is:
 
 https://raw.githubusercontent.com/droiddeck/releases/main/odin2_mini.json
 
-The feed is currently an empty array, which means no update is available.
-Additional devices and OS families will receive their own release metadata.
+Additional devices and OS families will use separate feeds. A package enters
+the feed after its signatures, contents and supported update/recovery path
+have been verified.
 
 ## Publication
 
-The main-only publication workflow checks an approved package inbox hourly.
-Its runner is isolated in a container with a read-only inbox: no private source,
-SSH keys, signing keys or Docker control socket are mounted. Fork and pull-request
-events do not run publication jobs. Each job uses this repository's short-lived
-GitHub token; no account-wide publication token is retained.
-
-Packages must pass payload/hash, pinned whole-file signature, redistribution and
-device migration/recovery checks before staging. No approved package is available
-yet, so publication runs currently leave the empty feed unchanged.
+The main publication workflow checks a reviewed package inbox hourly. Its
+container receives only approved assets through a read-only mount and uses
+this repository's short-lived GitHub token. Private source, owner components
+and signing keys are excluded. The feed advances only after independent
+anonymous downloads match the approved hashes.
