@@ -1,1 +1,18 @@
-[]
+[
+  {
+    "datetime": 1791758815,
+    "type": "UNOFFICIAL",
+    "version": "23.2",
+    "files": [
+      {
+        "filename": "lineage-23.2-20261011-preview1-756923b14d2e-odin2_mini.zip",
+        "os_patch_level": "2026-10-01",
+        "os_sdk_level": 36,
+        "ota_property_files": "payload_metadata.bin:3602:33871,payload.bin:3602:853324444,payload_properties.txt:853328104:154,apex_info.pb:1820:1263,care_map.pb:3130:425,metadata:69:685,metadata.pb:822:950",
+        "sha256": "c50752975b85b41e6af612dbe6494b3fd19a66f445b4fbbedecb5bb9fd3773b7",
+        "size": 853332368,
+        "url": "https://github.com/droiddeck/releases/releases/download/23.2-20261011-preview1-756923b14d2e/lineage-23.2-20261011-preview1-756923b14d2e-odin2_mini.zip"
+      }
+    ]
+  }
+]
